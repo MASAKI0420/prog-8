@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>OSU! ⇔ TJA Taiko Converter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- JSZipライブラリの追加 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 850px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .tab {
+            overflow: hidden;
+            border-bottom: 2px solid #ccc;
+            margin-bottom: 20px;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 17px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #ccc;
+            font-weight: bold;
+        }
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border-top: none;
+        }
+        .converter-area {
+            margin-top: 20px;
+            border: 2px dashed #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            background-color: #fafafa;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .input-group p {
+             margin-bottom: 5px;
+        }
+        button.convert-btn {
+            background-color: #d9534f;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin-top: 15px;
+        }
+        button.convert-btn:hover {
+            background-color: #c9302c;
+        }
+        button.convert-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .output-area {
+            margin-top: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 250px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+        }
+        a.download-link {
+            display: none; /* Initially hidden */
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-align: center;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .download-link.single {
+            background-color: #5bc0de;
+            color: white;
+        }
+         .download-link.single:hover {
+            background-color: #31b0d5;
+        }
+        .download-link.zip {
+            background-color: #5cb85c;
+            color: white;
+        }
+        .download-link.zip:hover {
+            background-color: #449d44;
+        }
+        .download-buttons {
+            display: none; /* Initially hidden */
+            margin-top: 10px;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fcf8e3;
+            border: 1px solid #faebcc;
+            color: #8a6d3b;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>OSU!太鼓 ⇔ 太鼓さん次郎 譜面相互変換</h1>
+
+        <div class="tab">
+            <button class="tablinks active" onclick="openConverter(event, 'OsuToTja')">OSU! (.osu) → TJA (.tja)</button>
+            <button class="tablinks" onclick="openConverter(event, 'TjaToOsu')">TJA (.tja) → OSU! (.osu)</button>
+        </div>
+
+        <div id="OsuToTja" class="tabcontent" style="display: block;">
+            <h2>OSU! (.osu) から TJA (.tja) へ変換</h2>
+            <div class="converter-area">
+                <div class="input-group">
+                    <p><strong>1. OSU!の譜面ファイル (.osu) を選択</strong></p>
+                    <input type="file" id="osu-file-input" accept=".osu">
+                </div>
+                <div class="input-group">
+                    <p><strong>2. 音楽ファイル (任意)</strong></p>
+                    <input type="file" id="osu-audio-input" accept="audio/*">
+                </div>
+                <button id="convert-to-tja-button" class="convert-btn" disabled>TJAへ変換実行</button>
+            </div>
+            <div class="output-area">
+                <h3>変換結果 (.tja)</h3>
+                <textarea id="tja-output" readonly placeholder="ここに変換後のTJA譜面データが表示されます..."></textarea>
+                <div id="tja-download-buttons" class="download-buttons">
+                    <a id="download-tja-link" class="download-link single" href="#" download="converted.tja">譜面 (.tja) のみダウンロード</a>
+                    <a id="download-tja-zip-link" class="download-link zip" href="#">譜面と音楽をZIPでダウンロード</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="TjaToOsu" class="tabcontent">
+            <h2>TJA (.tja) から OSU! (.osu) へ変換</h2>
+            <div class="converter-area">
+                <div class="input-group">
+                    <p><strong>1. TJAの譜面ファイル (.tja) を選択</strong></p>
+                    <input type="file" id="tja-file-input" accept=".tja">
+                </div>
+                 <div class="input-group">
+                    <p><strong>2. 音楽ファイル (任意)</strong></p>
+                    <input type="file" id="tja-audio-input" accept="audio/*">
+                </div>
+                <button id="convert-to-osu-button" class="convert-btn" disabled>OSU!へ変換実行</button>
+            </div>
+            <div class="output-area">
+                <h3>変換結果 (.osu)</h3>
+                <textarea id="osu-output" readonly placeholder="ここに変換後のOSU!譜面データが表示されます..."></textarea>
+                 <div id="osu-download-buttons" class="download-buttons">
+                    <a id="download-osu-link" class="download-link single" href="#" download="converted.osu">譜面 (.osu) のみダウンロード</a>
+                    <a id="download-osu-zip-link" class="download-link zip" href="#">譜面と音楽をOSZでダウンロード</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="info">
+            <h4>共通の注意点</h4>
+            <ul>
+                <li>変換はすべてお使いのブラウザ上で完結し、ファイルが外部に送信されることはありません。</li>
+                <li>このツールは基本的な譜面の変換に対応しています。複雑なギミック（譜面停止、#SCROLL以外のスクロール速度変化など）には対応できない場合があります。</li>
+                <li>変換後のファイルは、必要に応じて譜面エディタで微調整を行うことを推奨します。</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function openConverter(evt, converterName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(converterName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // --- OSU to TJA Converter ---
+        const osuFileInput = document.getElementById('osu-file-input');
+        const osuAudioInput = document.getElementById('osu-audio-input');
+        const convertToTjaButton = document.getElementById('convert-to-tja-button');
+        const tjaOutput = document.getElementById('tja-output');
+        const tjaDownloadButtons = document.getElementById('tja-download-buttons');
+        const downloadTjaLink = document.getElementById('download-tja-link');
+        const downloadTjaZipLink = document.getElementById('download-tja-zip-link');
+        let osuFileContent = '', osuFileNameBase = 'converted', osuAudioFile = null;
+
+        osuFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    osuFileContent = e.target.result;
+                    osuFileNameBase = file.name.replace(/\.[^/.]+$/, "");
+                    convertToTjaButton.disabled = false;
+                };
+                reader.readAsText(file, 'UTF-8');
+            } else {
+                convertToTjaButton.disabled = true;
+            }
+        });
+        
+        osuAudioInput.addEventListener('change', (event) => {
+            osuAudioFile = event.target.files[0] || null;
+        });
+
+        convertToTjaButton.addEventListener('click', () => {
+            if (!osuFileContent) return;
+            try {
+                const audioNameToUse = osuAudioFile ? osuAudioFile.name : undefined;
+                const tjaContent = convertOsuToTja(osuFileContent, audioNameToUse);
+                tjaOutput.value = tjaContent;
+                
+                updateDownloadLink(downloadTjaLink, `${osuFileNameBase}.tja`, tjaContent);
+                tjaDownloadButtons.style.display = 'block';
+                
+                if (osuAudioFile) {
+                    downloadTjaZipLink.style.display = 'inline-block';
+                } else {
+                    downloadTjaZipLink.style.display = 'none';
+                }
+
+            } catch (error) {
+                alert('OSU→TJA変換中にエラー: ' + error.message);
+                console.error(error);
+            }
+        });
+        
+        downloadTjaZipLink.addEventListener('click', () => {
+            if (!tjaOutput.value || !osuAudioFile) return;
+
+            const zip = new JSZip();
+            zip.file(`${osuFileNameBase}.tja`, tjaOutput.value);
+            zip.file(osuAudioFile.name, osuAudioFile);
+
+            zip.generateAsync({ type: "blob" }).then(function(content) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `${osuFileNameBase}.zip`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            });
+        });
+
+        function convertOsuToTja(osuContent, audioFileNameOverride) {
+            const lines = osuContent.split(/\r?\n/);
+            const data = {
+                Title: '', Artist: '', Creator: '', Version: '', AudioFilename: '', PreviewTime: 0,
+                HPDrainRate: 5, OverallDifficulty: 5, SliderMultiplier: 1.4,
+                TimingPoints: [], HitObjects: []
+            };
+            let currentSection = '';
+            for (const line of lines) {
+                if (line.startsWith('[')) { currentSection = line.trim(); continue; }
+                if (!line.trim()) continue;
+                if (currentSection === '[TimingPoints]' || currentSection === '[HitObjects]') { data[currentSection.slice(1, -1)].push(line.split(',')); continue; }
+                const [key, ...valueParts] = line.split(':');
+                const value = valueParts.join(':').trim();
+                switch (currentSection) {
+                    case '[Metadata]':
+                        if (key === 'Title') data.Title = value; if (key === 'Artist') data.Artist = value;
+                        if (key === 'Creator') data.Creator = value; if (key === 'Version') data.Version = value;
+                        break;
+                    case '[General]':
+                        if (key === 'AudioFilename') data.AudioFilename = value; if (key === 'PreviewTime') data.PreviewTime = parseInt(value, 10) / 1000;
+                        break;
+                    case '[Difficulty]':
+                        if (key === 'HPDrainRate') data.HPDrainRate = parseFloat(value); if (key === 'OverallDifficulty') data.OverallDifficulty = parseFloat(value);
+                        if (key === 'SliderMultiplier') data.SliderMultiplier = parseFloat(value);
+                        break;
+                }
+            }
+            const mainTimingPoint = data.TimingPoints.find(tp => parseFloat(tp[1]) > 0);
+            if (!mainTimingPoint) throw new Error("有効なタイミングポイントが見つかりません。");
+            const firstBpm = 60000 / parseFloat(mainTimingPoint[1]);
+            const offset = -parseFloat(mainTimingPoint[0]) / 1000;
+            const difficultyMap = {0:'Easy',1:'Normal',2:'Hard',3:'Oni',4:'Edit'};
+            const courseMatch = Object.keys(difficultyMap).find(key => data.Version.toLowerCase().includes(difficultyMap[key].toLowerCase()));
+            const courseName = courseMatch ? difficultyMap[courseMatch] : 'Oni';
+            
+            // If an audio file was selected, use its name. Otherwise, use the name from the .osu file.
+            const waveFileName = audioFileNameOverride || data.AudioFilename;
+
+            let tjaHeader = `TITLE:${data.Title}\nSUBTITLE:--${data.Artist}\nBPM:${firstBpm.toFixed(2)}\nWAVE:${waveFileName}\nOFFSET:${offset.toFixed(3)}\nDEMOSTART:${data.PreviewTime.toFixed(2)}\nCOURSE:${courseName}\nLEVEL:${Math.round(data.OverallDifficulty) > 0 ? Math.round(data.OverallDifficulty) : 1}\n`;
+            const allEvents = [];
+            data.HitObjects.forEach(obj => {
+                const time = parseInt(obj[2], 10); const type = parseInt(obj[3], 10); const hitSound = parseInt(obj[4], 10);
+                if (type & 1) { const isDon = !(hitSound & 2) && !(hitSound & 8); const isBig = (hitSound & 4) !== 0; allEvents.push({ time, type: 'NOTE', value: isBig ? (isDon ? '3' : '4') : (isDon ? '1' : '2') });
+                } else if (type & 2) {
+                    const timingPointForSlider = data.TimingPoints.slice().reverse().find(tp => parseInt(tp[0]) <= time && parseFloat(tp[1]) > 0) || mainTimingPoint;
+                    const beatLength = parseFloat(timingPointForSlider[1]); const sliderDuration = parseFloat(obj[7]) / (data.SliderMultiplier * 100) * beatLength;
+                    const endTime = time + sliderDuration; allEvents.push({ time, type: 'NOTE', value: '5' }); allEvents.push({ time: endTime, type: 'NOTE', value: '8' });
+                } else if (type & 8) { const endTime = parseInt(obj[5], 10); allEvents.push({ time, type: 'NOTE', value: '7' }); allEvents.push({ time: endTime, type: 'NOTE', value: '8' }); }
+            });
+            let kiaiActive = false; let currentBpmVal = firstBpm;
+            data.TimingPoints.forEach(tp => {
+                const time = parseInt(tp[0], 10); const beatLength = parseFloat(tp[1]); const isInherited = beatLength > 0;
+                const effects = parseInt(tp[7] || '0', 10); const isKiaiNow = (effects & 1) !== 0;
+                if (isInherited) { const newBPM = 60000 / beatLength; if (Math.abs(newBPM - currentBpmVal) > 0.01) { allEvents.push({ time, type: 'CMD', value: `#BPMCHANGE: ${newBPM.toFixed(2)}` }); currentBpmVal = newBPM; } }
+                if (isKiaiNow !== kiaiActive) { allEvents.push({ time, type: 'CMD', value: isKiaiNow ? '#GOGOTIME' : '#GOGOEND' }); kiaiActive = isKiaiNow; }
+            });
+            allEvents.sort((a, b) => a.time - b.time || (a.type === 'CMD' ? -1 : 1));
+            let tjaBody = "\n#START\n"; let eventIndex = 0; let currentTime = parseFloat(mainTimingPoint[0]); let currentBpm = firstBpm; let currentMeter = parseInt(mainTimingPoint[2], 10);
+            const lastEventTime = allEvents.length > 0 ? allEvents[allEvents.length - 1].time : currentTime;
+            while(currentTime < lastEventTime + 1) {
+                const measureDuration = (60000 / currentBpm) * currentMeter; const measureEndTime = currentTime + measureDuration;
+                const eventsInMeasure = [];
+                while (eventIndex < allEvents.length && allEvents[eventIndex].time < measureEndTime) { eventsInMeasure.push(allEvents[eventIndex]); eventIndex++; }
+                eventsInMeasure.forEach(event => { if (event.type === 'CMD') tjaBody += event.value + '\n'; });
+                const notesInMeasure = eventsInMeasure.filter(e => e.type === 'NOTE');
+                if (notesInMeasure.length === 0) { tjaBody += "0,\n"; } else {
+                    const resolution = 16; const measureStr = Array(resolution).fill('0');
+                    notesInMeasure.forEach(note => {
+                        const pos = Math.floor(((note.time - currentTime) / measureDuration) * resolution);
+                        if (pos >= 0 && pos < resolution) measureStr[pos] = note.value;
+                    });
+                    tjaBody += measureStr.join('') + ",\n";
+                }
+                currentTime = measureEndTime;
+                const timingPointsAfter = data.TimingPoints.filter(tp => parseInt(tp[0]) >= Math.floor(currentTime) && parseFloat(tp[1]) > 0);
+                if (timingPointsAfter.length > 0) {
+                    const nextTp = timingPointsAfter[0]; currentBpm = 60000 / parseFloat(nextTp[1]); currentMeter = parseInt(nextTp[2], 10);
+                }
+            }
+            return tjaHeader + tjaBody + "#END\n";
+        }
+
+        // --- TJA to OSU Converter ---
+        const tjaFileInput = document.getElementById('tja-file-input');
+        const tjaAudioInput = document.getElementById('tja-audio-input');
+        const convertToOsuButton = document.getElementById('convert-to-osu-button');
+        const osuOutput = document.getElementById('osu-output');
+        const osuDownloadButtons = document.getElementById('osu-download-buttons');
+        const downloadOsuLink = document.getElementById('download-osu-link');
+        const downloadOsuZipLink = document.getElementById('download-osu-zip-link');
+        let tjaFileContent = '', tjaFileNameBase = 'converted', tjaAudioFile = null;
+
+        tjaFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    tjaFileContent = e.target.result;
+                    tjaFileNameBase = file.name.replace(/\.[^/.]+$/, "");
+                    convertToOsuButton.disabled = false;
+                };
+                reader.readAsText(file, 'shift-jis');
+            } else {
+                convertToOsuButton.disabled = true;
+            }
+        });
+        
+        tjaAudioInput.addEventListener('change', (event) => {
+            tjaAudioFile = event.target.files[0] || null;
+        });
+
+        convertToOsuButton.addEventListener('click', () => {
+            if (!tjaFileContent) return;
+            try {
+                const audioNameToUse = tjaAudioFile ? tjaAudioFile.name : undefined;
+                const osuContent = convertTjaToOsu(tjaFileContent, audioNameToUse);
+                osuOutput.value = osuContent;
+                
+                updateDownloadLink(downloadOsuLink, `${tjaFileNameBase}.osu`, osuContent);
+                osuDownloadButtons.style.display = 'block';
+
+                if (tjaAudioFile) {
+                    downloadOsuZipLink.style.display = 'inline-block';
+                } else {
+                    downloadOsuZipLink.style.display = 'none';
+                }
+            } catch (error) {
+                alert('TJA→OSU変換中にエラー: ' + error.message);
+                console.error(error);
+            }
+        });
+        
+        downloadOsuZipLink.addEventListener('click', () => {
+            if (!osuOutput.value || !tjaAudioFile) return;
+
+            const zip = new JSZip();
+            zip.file(`${tjaFileNameBase}.osu`, osuOutput.value);
+            zip.file(tjaAudioFile.name, tjaAudioFile);
+
+            zip.generateAsync({ type: "blob" }).then(function(content) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `${tjaFileNameBase}.osz`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            });
+        });
+
+        function convertTjaToOsu(tjaContent, audioFileNameOverride) {
+            const lines = tjaContent.split(/\r?\n/);
+            const header = { TITLE: '', SUBTITLE: '', BPM: 120, WAVE: '', OFFSET: 0, DEMOSTART: 0, COURSE: 'Oni', LEVEL: 5 };
+            const rawData = [];
+            let inData = false;
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine.toUpperCase().startsWith('#START')) { inData = true; continue; } if (trimmedLine.toUpperCase().startsWith('#END')) break;
+                if (!inData) { const [key, ...valueParts] = trimmedLine.split(':'); const value = valueParts.join(':').trim(); if(key && value) header[key.toUpperCase()] = value;
+                } else { if(trimmedLine && !trimmedLine.startsWith('//')) rawData.push(trimmedLine); }
+            }
+            const artist = header.SUBTITLE.replace('--', '').trim(); const version = `${header.COURSE} Lv.${header.LEVEL}`;
+            const offsetMs = (parseFloat(header.OFFSET) || 0) * -1000; const initialBpm = parseFloat(header.BPM) || 120;
+            
+            // If an audio file was selected, use its name. Otherwise, use the name from the .tja file.
+            const waveFileName = audioFileNameOverride || header.WAVE;
+            
+            const osu = {
+                header: `osu file format v14`,
+                General: [ `AudioFilename: ${waveFileName}`, `AudioLeadIn: 0`, `PreviewTime: ${parseFloat(header.DEMOSTART) * 1000 || 0}`, `Countdown: 0`, `SampleSet: Soft`, `StackLeniency: 0.7`, `Mode: 1`, `LetterboxInBreaks: 0`, `WidescreenStoryboard: Yes` ],
+                Editor: [`DistanceSpacing: 1`, `BeatDivisor: 4`, `GridSize: 4`, `TimelineZoom: 2`],
+                Metadata: [ `Title:${header.TITLE}`, `TitleUnicode:${header.TITLE}`, `Artist:${artist}`, `ArtistUnicode:${artist}`, `Creator:Converted`, `Version:${version}`, `Source:`, `Tags:`, `BeatmapID:0`, `BeatmapSetID:-1` ],
+                Difficulty: [ `HPDrainRate:${Math.max(1, header.LEVEL / 2)}`, `CircleSize:5`, `OverallDifficulty:${Math.max(1, header.LEVEL)}`, `ApproachRate:5`, `SliderMultiplier:1.4`, `SliderTickRate:1` ],
+                Events: [`//Background and Video events`, `0,0,"bg.jpg",0,0`],
+                TimingPoints: [],
+                HitObjects: []
+            };
+            const measures = []; let currentCommands = [];
+            for (const line of rawData) {
+                if (line.startsWith('#')) { currentCommands.push(line); } else if (line.includes(',')) { measures.push({ commands: currentCommands, notes: line.split(',')[0] }); currentCommands = []; }
+            }
+            let currentTime = offsetMs;
+            let currentBpm = initialBpm;
+            let currentMeter = 4;
+            let gogoActive = false;
+            let activeRoll = null;
+            osu.TimingPoints.push(`${Math.floor(currentTime)},${60000 / currentBpm},${currentMeter},1,1,100,1,0`);
+            for (const measure of measures) {
+                const timeOfMeasureStart = Math.floor(currentTime);
+                let bpmOrMeterChanged = false;
+                let gogoStateAtStart = gogoActive;
+                for (const commandLine of measure.commands) {
+                    const command = commandLine.substring(1).split(/\s+/)[0].toUpperCase();
+                    const value = commandLine.substring(1 + command.length).trim();
+                    switch (command) {
+                        case 'BPMCHANGE': currentBpm = parseFloat(value); bpmOrMeterChanged = true; break;
+                        case 'MEASURE': const [num, den] = value.split('/').map(Number); if (!isNaN(num) && !isNaN(den) && num > 0 && den > 0) { currentMeter = num; bpmOrMeterChanged = true; } break;
+                        case 'GOGOTIME': if (!gogoActive) { gogoActive = true; } break;
+                        case 'GOGOEND': if (gogoActive) { gogoActive = false; } break;
+                    }
+                }
+                if (bpmOrMeterChanged) { osu.TimingPoints.push(`${timeOfMeasureStart},${60000 / currentBpm},${currentMeter},1,1,100,1,${gogoActive ? 1 : 0}`);
+                } else if (gogoActive !== gogoStateAtStart) { osu.TimingPoints.push(`${timeOfMeasureStart},-100,${currentMeter},1,1,100,0,${gogoActive ? 1 : 0}`); }
+                const notes = measure.notes;
+                const measureDuration = (60000 / currentBpm) * currentMeter;
+                if (notes.length > 0) {
+                    const timePerNote = measureDuration / notes.length;
+                    for (let i = 0; i < notes.length; i++) {
+                        const noteChar = notes[i]; if (noteChar === '0') continue;
+                        const noteTime = Math.floor(currentTime + i * timePerNote);
+                        let hitSound = 0; if (noteChar === '1') hitSound = 0; else if (noteChar === '2') hitSound = 8; else if (noteChar === '3') hitSound = 4; else if (noteChar === '4') hitSound = 12;
+                        if ('1234'.includes(noteChar)) { osu.HitObjects.push(`256,192,${noteTime},1,${hitSound},0:0:0:0:`);
+                        } else if (noteChar === '5' || noteChar === '7') { activeRoll = { time: noteTime, type: (noteChar === '5' ? 2 : 8) };
+                        } else if (noteChar === '8' && activeRoll) { osu.HitObjects.push(`256,192,${activeRoll.time},${activeRoll.type},0,${noteTime},0:0:0:0:`); activeRoll = null; }
+                    }
+                }
+                currentTime += measureDuration;
+            }
+            const pointMap = new Map();
+            osu.TimingPoints.forEach(p => {
+                const time = p.split(',')[0]; const beatLength = parseFloat(p.split(',')[1]); const existing = pointMap.get(time);
+                if (!existing || beatLength > 0) { pointMap.set(time, p); }
+            });
+            osu.TimingPoints = Array.from(pointMap.values()).sort((a,b) => {
+                const timeA = parseFloat(a.split(',')[0]); const timeB = parseFloat(b.split(',')[0]);
+                if (timeA !== timeB) return timeA - timeB;
+                return parseFloat(b.split(',')[1]) - parseFloat(a.split(',')[1]);
+            });
+            let result = osu.header + '\n\n';
+            for (const section in osu) { if (section === 'header') continue; result += `[${section}]\n` + osu[section].join('\n') + '\n\n'; }
+            return result;
+        }
+        
+        // --- Utility ---
+        function updateDownloadLink(linkElement, fileName, content) {
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            linkElement.href = URL.createObjectURL(blob);
+            linkElement.download = fileName;
+        }
+    </script>
+</body>
+</html>
