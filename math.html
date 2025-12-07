@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>計算トレーニング</title>
+    
+    <!-- ▼▼▼ PWA設定 ▼▼▼ -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="計算トレ">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+
+    <link id="dynamic-favicon" rel="icon" type="image/png" href="">
+    <link id="dynamic-apple-icon" rel="apple-touch-icon" href="">
+    <link id="dynamic-manifest" rel="manifest" href="">
+
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #9b59b6;
+            --success-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --dark-color: #34495e;
+            --light-color: #f4f7f9;
+            --warning-color: #e67e22;
+        }
+        html, body {
+            height: 100%; width: 100%; overflow: hidden;
+            overscroll-behavior: none;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            margin: 0; background-color: var(--light-color); color: #333;
+            -webkit-user-select: none; user-select: none;
+            transition: all 0.2s ease-in-out;
+        }
+        .container {
+            text-align: center; padding: 10px 20px;
+            background-color: #fff;
+            border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            width: 95%; max-width: 500px; height: 95vh;
+            display: flex; flex-direction: column; justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        h1, h2 { color: var(--dark-color); margin: 10px 0; }
+
+        .screen { display: none; width: 100%; }
+        #start-screen { display: block; }
+
+        button {
+            font-size: 1.1em; padding: 12px 25px; margin: 8px; border: none;
+            border-radius: 8px; cursor: pointer; color: #fff;
+            transition: background-color 0.3s, transform 0.2s;
+            touch-action: manipulation;
+        }
+        button:hover { transform: translateY(-2px); }
+        button:active { transform: scale(0.98); }
+        .btn-primary { background-color: var(--primary-color); }
+        .btn-secondary { background-color: var(--secondary-color); }
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-success { background-color: var(--success-color); }
+        .btn-warning { background-color: var(--warning-color); }
+
+        #mode-selection button { width: 80%; }
+        #time-attack-options, #custom-settings-screen { margin-top: 10px; }
+
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; text-align: left; }
+        .setting-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        .setting-group input[type="number"] { width: 80%; padding: 8px; font-size: 1em; border: 1px solid #ccc; border-radius: 5px; }
+        .operators-group { grid-column: 1 / -1; }
+        .op-checkboxes { display: flex; justify-content: center; gap: 10px; }
+        .op-checkboxes input { display: none; }
+        .op-checkboxes label { padding: 8px 12px; border: 2px solid #ccc; border-radius: 15px; cursor: pointer; transition: all 0.3s; }
+        .op-checkboxes input:checked + label { background-color: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+        #error-message { color: var(--danger-color); height: 20px; }
+
+        #game-info { display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
+        #timer { color: var(--danger-color); }
+        #score { color: var(--success-color); }
+        #question { font-size: 2.5em; margin: 10px 0; color: var(--dark-color); }
+        
+        #answer { 
+            font-size: 1.4em; padding: 10px; width: 180px; text-align: center; 
+            border: 2px solid #ccc; border-radius: 8px; margin-bottom: 10px; 
+            background-color: #f9f9f9; cursor: default;
+        }
+        #answer:focus { outline: none; border-color: var(--primary-color); }
+
+        #feedback { 
+            height: 24px; 
+            font-size: 1.2em; 
+            font-weight: bold; 
+            margin-bottom: 10px; 
+        }
+        
+        .correct { color: var(--success-color); }
+        .incorrect { color: var(--danger-color); }
+        #custom-mode-controls button { font-size: 0.9em; padding: 8px 15px; margin: 5px; }
+
+        #game-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: 280px;
+            margin: 0 auto 10px auto;
+        }
+        .key-btn {
+            font-size: 1.5em;
+            padding: 15px 0;
+            margin: 0;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 3px 0 #bdc3c7;
+            touch-action: none;
+        }
+        .key-btn:active, .key-btn.active-press {
+            transform: translateY(3px);
+            box-shadow: none;
+            background-color: #d0d3d4;
+        }
+        .key-del { background-color: #e74c3c; color: white; box-shadow: 0 3px 0 #c0392b; }
+        .key-del:active, .key-del.active-press { background-color: #c0392b; }
+        
+        .key-enter { background-color: #2ecc71; color: white; box-shadow: 0 3px 0 #27ae60; }
+        .key-enter:active, .key-enter.active-press { background-color: #27ae60; }
+        
+        .key-quit {
+            background-color: #95a5a6; 
+            color: white; 
+            box-shadow: 0 3px 0 #7f8c8d;
+            grid-column: 1 / -1; 
+            margin-top: 5px;
+            font-size: 1.2em;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .key-quit::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 100%;
+            background-color: #e74c3c;
+            z-index: -1;
+            transition: width 0s;
+        }
+
+        .key-quit.pressing::before {
+            width: 100%;
+            transition: width 2s linear;
+        }
+        
+        .key-btn.disabled { opacity: 0.5; pointer-events: none; box-shadow: none; transform: translateY(2px); }
+
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        
+        #final-score { font-size: 3.5em; font-weight: bold; color: #e67e22; margin: 15px 0; }
+        
+        #high-score-display {
+            font-size: 1em;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        #memo-modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: #fff; }
+        .memo-content { width: 100%; height: 100%; position: relative; }
+        #memo-canvas { display: block; touch-action: none; }
+        .memo-buttons { position: absolute; bottom: 20px; right: 20px; z-index: 2; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+        .memo-buttons button { padding: 10px 15px; font-size: 1em; }
+        .tool-btn { border: 2px solid var(--dark-color); background-color: #fff; color: var(--dark-color); }
+        .tool-btn.active-tool { background-color: var(--dark-color); color: #fff; }
+        #eraser-size-options { display: none; gap: 5px; align-items: center; }
+        #eraser-size-options.visible { display: flex; }
+        #eraser-size-options .size-btn { padding: 8px; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #ccc; background-color: #fff; color: #333; }
+        #eraser-size-options .size-btn.active-size { border-color: var(--primary-color); background-color: #eaf5ff; }
+        #eraser-cursor { display: none; position: absolute; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.5); background-color: rgba(0, 0, 0, 0.1); pointer-events: none; transform: translate(-50%, -50%); }
+
+        #calculator-modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
+        .calculator { width: 280px; background-color: #333; border-radius: 10px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        #calc-display { background-color: #ddd; color: #333; font-size: 2.2em; text-align: right; padding: 10px 15px; border-radius: 5px; margin-bottom: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #calc-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        #calc-keys button { font-size: 1.5em; padding: 15px 0; margin: 0; border-radius: 5px; background-color: #555; border: none; }
+        #calc-keys button:hover { background-color: #666; }
+        #calc-keys .operator { background-color: #f39c12; }
+        #calc-keys .operator:hover { background-color: #e67e22; }
+        #close-calc-btn { width: 100%; margin-top: 15px; background-color: var(--danger-color); }
+        
+        #install-btn {
+            display: inline-block;
+            background-color: #16a085;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @media all and (display-mode: standalone) {
+            #fullscreen-btn {
+                display: none;
+            }
+        }
+
+        /* ▼▼▼ 追加：カウントダウンオーバーレイのスタイル ▼▼▼ */
+        #countdown-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: none; /* 初期は非表示 */
+            justify-content: center;
+            align-items: center;
+            font-size: 8rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            z-index: 9999;
+            user-select: none;
+        }
+        /* ▲▲▲ 追加終了 ▲▲▲ */
+    </style>
+
+    <script>
+        (function() {
+            const size = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = "#f39c12"; 
+            ctx.fillRect(0, 0, size, size);
+
+            const baseColor = "#57606f"; 
+            const shineColor = "rgba(255, 255, 255, 0.4)"; 
+            const lineWidth = 45; 
+            const radius = 60; 
+            ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+            function drawSegment(x1, y1, x2, y2) {
+                ctx.beginPath(); ctx.lineWidth = lineWidth; ctx.strokeStyle = baseColor;
+                ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                ctx.beginPath(); ctx.lineWidth = 12; ctx.strokeStyle = shineColor;
+                const angle = Math.atan2(y2 - y1, x2 - x1);
+                const shineStart = 5; const shineLen = 35; const offsetX = -5; const offsetY = -5;
+                ctx.moveTo(x1 + Math.cos(angle) * shineStart + offsetX, y1 + Math.sin(angle) * shineStart + offsetY);
+                ctx.lineTo(x1 + Math.cos(angle) * (shineStart + shineLen) + offsetX, y1 + Math.sin(angle) * (shineStart + shineLen) + offsetY);
+                ctx.stroke();
+            }
+
+            const cx1 = size * 0.25; const cx2 = size * 0.75; 
+            const cy1 = size * 0.25; const cy2 = size * 0.75; 
+            const r = 50;
+            drawSegment(cx1, cy1 - r, cx1, cy1 + r); drawSegment(cx1 - r, cy1, cx1 + r, cy1); 
+            drawSegment(cx2 - r, cy1, cx2 + r, cy1); 
+            const k = r * 0.7;
+            drawSegment(cx1 - k, cy2 - k, cx1 + k, cy2 + k); drawSegment(cx1 + k, cy2 - k, cx1 - k, cy2 + k); 
+            drawSegment(cx2 - r, cy2, cx2 + r, cy2); 
+            function drawDot(x, y) {
+                ctx.beginPath(); ctx.arc(x, y, lineWidth / 2, 0, Math.PI * 2); ctx.fillStyle = baseColor; ctx.fill();
+                ctx.beginPath(); ctx.arc(x - 5, y - 5, 6, 0, Math.PI * 2); ctx.fillStyle = shineColor; ctx.fill();
+            }
+            drawDot(cx2, cy2 - r * 1.1); drawDot(cx2, cy2 + r * 1.1);
+
+            const iconBase64 = canvas.toDataURL('image/png');
+            document.getElementById('dynamic-favicon').href = iconBase64;
+            document.getElementById('dynamic-apple-icon').href = iconBase64;
+
+            const manifestJson = {
+                "name": "計算トレーニング",
+                "short_name": "計算トレ",
+                "start_url": window.location.href,
+                "display": "standalone",
+                "background_color": "#ffffff",
+                "theme_color": "#000000",
+                "orientation": "portrait",
+                "description": "シンプルな計算トレーニングアプリ",
+                "icons": [{ "src": iconBase64, "sizes": "512x512", "type": "image/png" }]
+            };
+            const manifestString = JSON.stringify(manifestJson);
+            const base64Manifest = btoa(unescape(encodeURIComponent(manifestString)));
+            document.getElementById('dynamic-manifest').href = "data:application/manifest+json;base64," + base64Manifest;
+
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
+                    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+                    self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+                `;
+                const swBlob = new Blob([swCode], {type: 'application/javascript'});
+                const swUrl = URL.createObjectURL(swBlob);
+                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW Failed', err));
+            }
+        })();
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen" class="screen">
+        <h1>計算トレーニング</h1>
+        <div id="mode-selection">
+            <button class="btn-primary" onclick="showScreen('time-attack-options')">タイムアタックモード</button>
+            <button class="btn-warning" onclick="startSurvivalGame()">サバイバルモード (60秒+ボナスタイム)</button>
+            <button class="btn-secondary" onclick="showScreen('custom-settings-screen')">カスタムモード</button>
+            <button id="fullscreen-btn" class="btn-success" onclick="toggleFullScreen()">フルスクリーン</button>
+            <button id="install-btn" class="btn-primary">アプリをインストール</button>
+        </div>
+    </div>
+    
+    <div id="time-attack-options" class="screen">
+        <h2>タイムアタック</h2>
+        <p>時間を選択してスタート！</p>
+        <button class="btn-primary" onclick="startTimeAttack(10)">10秒</button>
+        <button class="btn-primary" onclick="startTimeAttack(20)">20秒</button>
+        <button class="btn-primary" onclick="startTimeAttack(30)">30秒</button>
+        <button class="btn-primary" onclick="startTimeAttack(60)">60秒</button>
+        <br><button class="btn-danger" onclick="showScreen('start-screen')">戻る</button>
+    </div>
+
+    <div id="custom-settings-screen" class="screen">
+        <h2>カスタムモード設定</h2>
+        <div class="settings-grid">
+            <div class="setting-group"><label for="digits1">数字1の桁数</label><input type="number" id="digits1" value="2" min="1" max="5"></div>
+            <div class="setting-group"><label for="digits2">数字2の桁数</label><input type="number" id="digits2" value="2" min="1" max="5"></div>
+            <div class="setting-group">
+                <label for="thinking-time">思考時間(秒) <small>※0で無効</small></label>
+                <input type="number" id="thinking-time" value="" placeholder="制限なし" min="1">
+            </div>
+            <div class="operators-group">
+                <label>計算の種類（複数選択可）</label>
+                <div class="op-checkboxes">
+                    <span><input type="checkbox" id="op-add" value="+" checked><label for="op-add">＋</label></span>
+                    <span><input type="checkbox" id="op-sub" value="-"><label for="op-sub">ー</label></span>
+                    <span><input type="checkbox" id="op-mul" value="×"><label for="op-mul">×</label></span>
+                    <span><input type="checkbox" id="op-div" value="÷"><label for="op-div">÷</label></span>
+                </div>
+            </div>
+        </div>
+        <div id="error-message"></div>
+        <button class="btn-success" onclick="startCustomGame()">スタート</button>
+        <button class="btn-danger" onclick="showScreen('start-screen')">戻る</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div id="game-info"><div id="timer"></div><div id="score"></div></div>
+        <div id="question">1 + 1</div>
+        
+        <input type="tel" id="answer" placeholder="答え" readonly>
+        
+        <div id="feedback"></div>
+        
+        <div id="game-keypad">
+            <button class="key-btn" data-val="7">7</button>
+            <button class="key-btn" data-val="8">8</button>
+            <button class="key-btn" data-val="9">9</button>
+            
+            <button class="key-btn" data-val="4">4</button>
+            <button class="key-btn" data-val="5">5</button>
+            <button class="key-btn" data-val="6">6</button>
+            
+            <button class="key-btn" data-val="1">1</button>
+            <button class="key-btn" data-val="2">2</button>
+            <button class="key-btn" data-val="3">3</button>
+            
+            <button class="key-btn key-del" data-val="del">⌫</button>
+            <button class="key-btn" data-val="0">0</button>
+            <button class="key-btn key-enter" data-val="enter">Enter</button>
+            
+            <button id="ta-quit-btn" class="key-btn key-quit">やめる (長押し)</button>
+        </div>
+
+        <div id="custom-mode-controls">
+            <button class="btn-danger" onclick="goToHome()">やめる</button>
+            <button class="btn-secondary" onclick="openMemo()">ひっ算メモ</button>
+            <button class="btn-secondary" onclick="openCalculator()">電卓</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <h2>タイムアップ！</h2>
+        <p>あなたのスコアは...</p>
+        <div id="final-score">15 <span>問</span></div>
+        <div id="high-score-display">自己ベスト: -- 問</div>
+        <button class="btn-secondary" onclick="goToHome()">もう一度挑戦する</button>
+    </div>
+</div>
+
+<!-- ▼▼▼ 追加：カウントダウン用要素 ▼▼▼ -->
+<div id="countdown-overlay"></div>
+<!-- ▲▲▲ 追加終了 ▲▲▲ -->
+
+<div id="memo-modal">
+    <div class="memo-content">
+        <canvas id="memo-canvas"></canvas>
+        <div id="eraser-cursor"></div>
+        <div class="memo-buttons">
+            <div id="eraser-size-options">
+                <button class="size-btn" data-size="10">小</button>
+                <button class="size-btn" data-size="20">中</button>
+                <button class="size-btn" data-size="40">大</button>
+            </div>
+            <button id="pen-btn" class="tool-btn" onclick="selectTool('pen')">ペン</button>
+            <button id="eraser-btn" class="tool-btn" onclick="selectTool('eraser')">消しゴム</button>
+            <button class="btn-danger" onclick="clearCanvas()">全消し</button>
+            <button class="btn-primary" onclick="closeMemo()">閉じる</button>
+        </div>
+    </div>
+</div>
+
+<div id="calculator-modal">
+    <div class="calculator">
+        <div id="calc-display">0</div>
+        <div id="calc-keys">
+            <button class="operator" data-key="clear">C</button>
+            <button data-key="backspace">⌫</button>
+            <button class="operator" data-key="%">%</button>
+            <button class="operator" data-key="/">÷</button>
+
+            <button data-key="7">7</button> <button data-key="8">8</button> <button data-key="9">9</button> <button class="operator" data-key="*">×</button>
+            <button data-key="4">4</button> <button data-key="5">5</button> <button data-key="6">6</button> <button class="operator" data-key="-">-</button>
+            <button data-key="1">1</button> <button data-key="2">2</button> <button data-key="3">3</button> <button class="operator" data-key="+">+</button>
+            <button data-key="0" style="grid-column: 1 / 3;">0</button> <button data-key=".">.</button> <button class="operator" data-key="=">=</button>
+        </div>
+        <button id="close-calc-btn" onclick="closeCalculator()">閉じる</button>
+    </div>
+</div>
+
+<script>
+    const screens = document.querySelectorAll('.screen'), timerElement = document.getElementById('timer'), scoreElement = document.getElementById('score'),
+          questionElement = document.getElementById('question'), feedbackElement = document.getElementById('feedback'), answerInput = document.getElementById('answer'),
+          finalScoreElement = document.getElementById('final-score'), customControls = document.getElementById('custom-mode-controls'),
+          memoModal = document.getElementById('memo-modal'), canvas = document.getElementById('memo-canvas'), ctx = canvas.getContext('2d'),
+          penBtn = document.getElementById('pen-btn'), eraserBtn = document.getElementById('eraser-btn'),
+          eraserCursor = document.getElementById('eraser-cursor'), eraserSizeOptions = document.getElementById('eraser-size-options'), sizeBtns = document.querySelectorAll('.size-btn'),
+          calculatorModal = document.getElementById('calculator-modal'), calcDisplay = document.getElementById('calc-display'), calcKeys = document.getElementById('calc-keys');
+
+    const taQuitBtn = document.getElementById('ta-quit-btn');
+    const countdownOverlay = document.getElementById('countdown-overlay'); // 追加
+
+    let gameMode = '', customSettings = {}, correctAnswer, score, timeLeft, timerInterval;
+    let thinkingTimer, nextQuestionTimer;
+    let isInputBlocked = false;
+    let currentStreak = 0;
+    let quitPressTimer;
+    let initialTime = 0;
+    
+    function showScreen(id) { screens.forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'block'; }
+
+    function goToHome() {
+        if (thinkingTimer) clearTimeout(thinkingTimer);
+        if (nextQuestionTimer) clearTimeout(nextQuestionTimer);
+        clearInterval(timerInterval);
+        isInputBlocked = false;
+        document.querySelectorAll('.key-btn').forEach(btn => btn.classList.remove('disabled'));
+        showScreen('start-screen');
+    }
+
+    function setupFastKeypad() {
+        const keys = document.querySelectorAll('#game-keypad .key-btn:not(.key-quit)');
+        keys.forEach(btn => {
+            const val = btn.getAttribute('data-val');
+            
+            const handleTouch = (e) => {
+                if(e.cancelable) e.preventDefault();
+                btn.classList.add('active-press');
+                setTimeout(() => btn.classList.remove('active-press'), 100);
+
+                if (val === 'enter') {
+                    checkAnswer();
+                } else {
+                    inputKey(val);
+                }
+            };
+
+            btn.addEventListener('touchstart', handleTouch, { passive: false });
+            
+            btn.addEventListener('mousedown', (e) => {
+                btn.classList.add('active-press');
+                setTimeout(() => btn.classList.remove('active-press'), 100);
+                if (val === 'enter') checkAnswer();
+                else inputKey(val);
+            });
+        });
+    }
+
+    function setupPhysicalKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('game-screen').style.display !== 'block') return;
+            if (document.getElementById('calculator-modal').style.display !== 'none' && 
+                document.getElementById('calculator-modal').style.display !== '') return;
+            if (document.getElementById('memo-modal').style.display !== 'none' && 
+                document.getElementById('memo-modal').style.display !== '') return;
+            if (isInputBlocked) return;
+
+            if (e.key >= '0' && e.key <= '9') {
+                const btn = document.querySelector(`.key-btn[data-val="${e.key}"]`);
+                if(btn) {
+                    btn.classList.add('active-press');
+                    setTimeout(() => btn.classList.remove('active-press'), 100);
+                }
+                inputKey(e.key);
+            } 
+            else if (e.key === 'Backspace' || e.key === 'Delete') {
+                const btn = document.querySelector(`.key-btn[data-val="del"]`);
+                if(btn) {
+                    btn.classList.add('active-press');
+                    setTimeout(() => btn.classList.remove('active-press'), 100);
+                }
+                inputKey('del');
+            } 
+            else if (e.key === 'Enter') {
+                e.preventDefault(); 
+                const btn = document.querySelector(`.key-btn[data-val="enter"]`);
+                if(btn) {
+                    btn.classList.add('active-press');
+                    setTimeout(() => btn.classList.remove('active-press'), 100);
+                }
+                checkAnswer();
+            }
+        });
+    }
+
+    function setupQuitButton() {
+        const resetBtn = () => {
+            clearTimeout(quitPressTimer);
+            taQuitBtn.textContent = "やめる (長押し)";
+            taQuitBtn.classList.remove('pressing'); 
+        };
+
+        const startPress = (e) => {
+            if(e.cancelable) e.preventDefault(); 
+            taQuitBtn.textContent = "そのまま待って...";
+            taQuitBtn.classList.add('pressing'); 
+            
+            quitPressTimer = setTimeout(() => {
+                resetBtn();
+                goToHome();
+            }, 2000); 
+        };
+
+        taQuitBtn.addEventListener('mousedown', startPress);
+        taQuitBtn.addEventListener('touchstart', startPress, {passive: false});
+        taQuitBtn.addEventListener('mouseup', resetBtn);
+        taQuitBtn.addEventListener('mouseleave', resetBtn);
+        taQuitBtn.addEventListener('touchend', resetBtn);
+    }
+
+    // ▼▼▼ 追加：カウントダウン処理 ▼▼▼
+    function startCountdown(callback) {
+        countdownOverlay.style.display = 'flex';
+        let count = 3;
+        countdownOverlay.textContent = count;
+        countdownOverlay.style.color = "var(--primary-color)";
+
+        const timer = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownOverlay.textContent = count;
+            } else if (count === 0) {
+                countdownOverlay.textContent = "START";
+                countdownOverlay.style.color = "var(--danger-color)";
+            } else {
+                clearInterval(timer);
+                countdownOverlay.style.display = 'none';
+                callback();
+            }
+        }, 1000);
+    }
+    // ▲▲▲ 追加終了 ▲▲▲
+
+    function startTimeAttack(sec) {
+        gameMode = 'time-attack'; score = 0; timeLeft = sec; showScreen('game-screen');
+        initialTime = sec; 
+        
+        timerElement.style.display = 'block'; 
+        customControls.style.display = 'none';
+        taQuitBtn.style.display = 'block'; 
+        
+        scoreElement.textContent = `スコア: ${score}`; timerElement.textContent = `時間: ${timeLeft}`;
+        
+        questionElement.textContent = '...'; // 準備中
+        answerInput.value = '';
+
+        // ▼▼▼ 変更：カウントダウン後に開始 ▼▼▼
+        startCountdown(() => {
+            generateQuestion(); 
+            timerInterval = setInterval(() => { timeLeft--; timerElement.textContent = `時間: ${timeLeft}`; if (timeLeft <= 0) endGame(); }, 1000);
+        });
+    }
+    
+    function startSurvivalGame() {
+        gameMode = 'survival';
+        score = 0;
+        timeLeft = 60; 
+        currentStreak = 0; 
+        
+        showScreen('game-screen');
+        timerElement.style.display = 'block';
+        customControls.style.display = 'none';
+        taQuitBtn.style.display = 'block'; 
+        
+        scoreElement.textContent = `スコア: ${score}`;
+        timerElement.textContent = `時間: ${timeLeft}`;
+        
+        questionElement.textContent = '...';
+        answerInput.value = '';
+
+        // ▼▼▼ 変更：カウントダウン後に開始 ▼▼▼
+        startCountdown(() => {
+            generateQuestion();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = `時間: ${timeLeft}`;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        });
+    }
+    
+    function endGame() { 
+        if (thinkingTimer) clearTimeout(thinkingTimer);
+        if (nextQuestionTimer) clearTimeout(nextQuestionTimer);
+        clearInterval(timerInterval); 
+        showScreen('result-screen'); 
+        finalScoreElement.innerHTML = `${score} <span>問</span>`; 
+
+        const highScoreElement = document.getElementById('high-score-display');
+        let storageKey = '';
+
+        if (gameMode === 'time-attack') {
+            storageKey = `calc-ta-${initialTime}`; 
+        } else if (gameMode === 'survival') {
+            storageKey = `calc-survival`;
+        }
+
+        if (storageKey) {
+            let bestScore = localStorage.getItem(storageKey) || 0;
+            if (parseInt(score) > parseInt(bestScore)) {
+                bestScore = score;
+                localStorage.setItem(storageKey, bestScore);
+            }
+            highScoreElement.textContent = `自己ベスト: ${bestScore} 問`;
+            highScoreElement.style.display = 'block';
+        } else {
+            highScoreElement.style.display = 'none';
+        }
+    }
+
+    function startCustomGame() {
+        const d1=parseInt(document.getElementById('digits1').value), d2=parseInt(document.getElementById('digits2').value), ops=Array.from(document.querySelectorAll('.op-checkboxes input:checked')).map(el=>el.value);
+        if (ops.length === 0) { document.getElementById('error-message').textContent = '計算の種類を1つ以上選んでください。'; return; }
+        document.getElementById('error-message').textContent = '';
+        
+        const tTime = parseInt(document.getElementById('thinking-time').value);
+        customSettings = { digits1: d1, digits2: d2, operators: ops, thinkingTime: isNaN(tTime) ? 0 : tTime }; 
+        
+        gameMode = 'custom'; score = 0;
+        showScreen('game-screen'); 
+        timerElement.style.display = 'none'; 
+        customControls.style.display = 'block';
+        taQuitBtn.style.display = 'none'; 
+
+        scoreElement.textContent = `正解数: ${score}`; generateQuestion(); 
+    }
+
+    function quitGame() { 
+        goToHome();
+    }
+
+    function getRandomNumberByDigits(d) { return Math.floor(Math.random() * (Math.pow(10, d) - Math.pow(10, d-1))) + Math.pow(10, d-1); }
+
+    function generateQuestion() {
+        if (thinkingTimer) clearTimeout(thinkingTimer);
+        if (nextQuestionTimer) clearTimeout(nextQuestionTimer);
+        isInputBlocked = false;
+        document.querySelectorAll('.key-btn').forEach(btn => btn.classList.remove('disabled'));
+
+        let n1, n2, op, qText;
+        if (gameMode === 'time-attack' || gameMode === 'survival') {
+             n1=Math.floor(Math.random()*10)+1; n2=Math.floor(Math.random()*10)+1; op=['+','-','×','÷'][Math.floor(Math.random()*4)];
+        }
+        else { n1=getRandomNumberByDigits(customSettings.digits1); n2=getRandomNumberByDigits(customSettings.digits2); op=customSettings.operators[Math.floor(Math.random()*customSettings.operators.length)]; }
+        switch (op) {
+            case '+': qText=`${n1} + ${n2}`; correctAnswer=n1+n2; break;
+            case '-': if(n1<n2)[n1,n2]=[n2,n1]; qText=`${n1} - ${n2}`; correctAnswer=n1-n2; break;
+            case '×': qText=`${n1} × ${n2}`; correctAnswer=n1*n2; break;
+            case '÷': if(gameMode==='custom'&&(customSettings.digits1>2||customSettings.digits2>2)) n2=Math.min(n2,12); const dividend=n1*n2; qText=`${dividend} ÷ ${n1}`; correctAnswer=n2; break;
+        }
+        questionElement.textContent = qText; answerInput.value = '';
+
+        if (gameMode === 'custom' && customSettings.thinkingTime > 0) {
+            thinkingTimer = setTimeout(() => {
+                feedbackElement.textContent = `時間切れ！ 答え: ${correctAnswer.toLocaleString()}`;
+                feedbackElement.className = 'incorrect';
+                isInputBlocked = true;
+                document.querySelectorAll('.key-btn').forEach(btn => btn.classList.add('disabled'));
+                nextQuestionTimer = setTimeout(() => { generateQuestion(); }, 3000);
+            }, customSettings.thinkingTime * 1000);
+        }
+    }
+
+    function inputKey(val) {
+        if (isInputBlocked) return;
+        if (val === 'del') { answerInput.value = ''; } 
+        else { answerInput.value += val; }
+        if (feedbackElement.textContent !== '') feedbackElement.textContent = '';
+    }
+
+    function checkAnswer() {
+        if (isInputBlocked) return;
+        if (answerInput.value==='') return;
+        
+        const userAnswer = parseInt(answerInput.value.replace(/,/g, ''), 10);
+        if (!isNaN(userAnswer)) {
+            if (userAnswer===correctAnswer) { 
+                if (thinkingTimer) clearTimeout(thinkingTimer);
+                score++; 
+                feedbackElement.textContent="○ 正解！"; feedbackElement.className='correct';
+                
+                if (gameMode === 'survival') {
+                    currentStreak++;
+                    if (currentStreak >= 3) {
+                        timeLeft += 2;
+                        currentStreak = 0;
+                        feedbackElement.textContent="○ 正解！ (+2秒)";
+                        timerElement.textContent = `時間: ${timeLeft}`;
+                    }
+                }
+            }
+            else { 
+                feedbackElement.textContent=`× 不正解 (答え: ${correctAnswer.toLocaleString()})`; feedbackElement.className='incorrect'; 
+                if (gameMode === 'survival') {
+                    currentStreak = 0;
+                }
+            }
+            scoreElement.textContent = (gameMode === 'time-attack' || gameMode === 'survival') ? `スコア: ${score}` : `正解数: ${score}`;
+            generateQuestion();
+        }
+    }
+    answerInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkAnswer(); });
+    
+    let wantsFullScreen = false;
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().then(() => {
+                wantsFullScreen = true;
+            }).catch(e => { wantsFullScreen = false; });
+        } else {
+            if (document.exitFullscreen) { document.exitFullscreen(); }
+        }
+    }
+    
+    let isDrawing=false, lastX=0, lastY=0, currentTool='pen', eraserSize=20;
+    function resizeCanvas() { canvas.width=window.innerWidth; canvas.height=window.innerHeight; selectTool(currentTool); setEraserSize(eraserSize); }
+    function getPos(c, e) { const rect=c.getBoundingClientRect(), touch=e.touches?e.touches[0]:e; return { x:touch.clientX-rect.left, y:touch.clientY-rect.top }; }
+    function updateCursor(e) { if(currentTool==='eraser'){ const {x,y}=getPos(canvas, e); eraserCursor.style.left=`${x}px`; eraserCursor.style.top=`${y}px`; } }
+    function startDrawing(e) { e.preventDefault(); isDrawing=true; const {x,y}=getPos(canvas,e); [lastX,lastY]=[x,y]; if(currentTool==='eraser'){ ctx.beginPath(); ctx.arc(x, y, eraserSize / 2, 0, Math.PI * 2); ctx.fill(); } }
+    function draw(e) {
+        if(!isDrawing) return; e.preventDefault(); const {x,y}=getPos(canvas,e);
+        if (currentTool==='pen') { ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke(); }
+        else {
+            const dist=Math.sqrt(Math.pow(x-lastX,2)+Math.pow(y-lastY,2)), angle=Math.atan2(y-lastY,x-lastX);
+            for (let i=0; i<dist; i+=1){ const newX=lastX+Math.cos(angle)*i, newY=lastY+Math.sin(angle)*i; ctx.beginPath(); ctx.arc(newX, newY, eraserSize/2, 0, Math.PI*2); ctx.fill(); }
+        }
+        [lastX,lastY]=[x,y]; updateCursor(e);
+    }
+    function stopDrawing() { isDrawing=false; }
+    function selectTool(tool) {
+        currentTool=tool;
+        if(tool==='pen'){ ctx.globalCompositeOperation='source-over'; ctx.lineWidth=3; ctx.lineCap='round'; penBtn.classList.add('active-tool'); eraserBtn.classList.remove('active-tool'); eraserCursor.style.display='none'; eraserSizeOptions.classList.remove('visible'); }
+        else{ ctx.globalCompositeOperation='destination-out'; penBtn.classList.remove('active-tool'); eraserBtn.classList.add('active-tool'); eraserCursor.style.display='block'; eraserCursor.style.width=`${eraserSize}px`; eraserCursor.style.height=`${eraserSize}px`; eraserSizeOptions.classList.add('visible'); }
+    }
+    function setEraserSize(size) { eraserSize=size; sizeBtns.forEach(btn=>btn.classList.toggle('active-size', parseInt(btn.dataset.size)===size)); if(currentTool==='eraser'){ eraserCursor.style.width=`${eraserSize}px`; eraserCursor.style.height=`${eraserSize}px`; } }
+    function openMemo() { memoModal.style.display='block'; resizeCanvas(); window.addEventListener('resize', resizeCanvas); }
+    function closeMemo() { memoModal.style.display='none'; window.removeEventListener('resize', resizeCanvas); }
+    function clearCanvas() { ctx.clearRect(0,0,canvas.width,canvas.height); }
+    function setupCanvasEvents() {
+        canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', ()=>eraserCursor.style.display='none'); canvas.addEventListener('mouseover', ()=>{if(currentTool==='eraser')eraserCursor.style.display='block'});
+        canvas.addEventListener('touchstart', startDrawing, { passive: false }); canvas.addEventListener('touchmove', draw, { passive: false }); canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('mousemove', updateCursor); canvas.addEventListener('touchmove', updateCursor, { passive: false });
+        sizeBtns.forEach(btn => btn.addEventListener('click', () => setEraserSize(parseInt(btn.dataset.size))));
+    }
+    
+    function isMobileDevice() { return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0); }
+    function handleKeyboard() {
+        if (isMobileDevice()) {
+            answerInput.addEventListener('focus', () => { document.body.style.alignItems='flex-start'; document.body.style.paddingTop='20px'; });
+            answerInput.addEventListener('blur', () => { setTimeout(() => { document.body.style.alignItems='center'; document.body.style.paddingTop='0'; }, 100); });
+        }
+    }
+    
+    const calculator={ displayValue:'0', firstOperand:null, waitingForSecondOperand:false, operator:null };
+    function openCalculator() { calculatorModal.style.display='flex'; }
+    function closeCalculator() { calculatorModal.style.display='none'; }
+    function updateCalcDisplay() { calcDisplay.textContent=calculator.displayValue; }
+    function handleCalcKeyPress(e) {
+        const {key}=e.target.dataset; if(!key) return;
+        if(!isNaN(parseInt(key))){ inputDigit(key); }
+        else if(key==='.'){ inputDecimal(key); }
+        else if(key==='clear'){ resetCalculator(); }
+        else if(key==='backspace'){ inputBackspace(); }
+        else if(key==='='){ handleOperator(key); }
+        else{ handleOperator(key); }
+        updateCalcDisplay();
+    }
+    function inputDigit(digit) { const {displayValue, waitingForSecondOperand}=calculator; if(waitingForSecondOperand===true){ calculator.displayValue=digit; calculator.waitingForSecondOperand=false; } else{ calculator.displayValue=displayValue==='0'?digit:displayValue+digit; } }
+    function inputDecimal(dot) { if(!calculator.displayValue.includes(dot)){ calculator.displayValue+=dot; } }
+    function inputBackspace() { if (calculator.displayValue.length > 1) { calculator.displayValue = calculator.displayValue.slice(0, -1); } else { calculator.displayValue = '0'; } }
+    function handleOperator(nextOperator) {
+        const {firstOperand, displayValue, operator}=calculator; const inputValue=parseFloat(displayValue);
+        if (operator && calculator.waitingForSecondOperand) { calculator.operator = nextOperator; return; }
+        if (firstOperand == null && !isNaN(inputValue)) { calculator.firstOperand = inputValue; } 
+        else if (operator) {
+            const result = performCalculation[operator](firstOperand, inputValue);
+            calculator.displayValue = `${parseFloat(result.toFixed(7))}`; calculator.firstOperand = result;
+        }
+        calculator.waitingForSecondOperand = true; calculator.operator = nextOperator;
+    }
+    const performCalculation={'/':(f,s)=>f/s, '*':(f,s)=>f*s, '+':(f,s)=>f+s, '-':(f,s)=>f-s, '=':(f,s)=>s,};
+    function resetCalculator() { calculator.displayValue='0'; calculator.firstOperand=null; calculator.waitingForSecondOperand=false; calculator.operator=null; }
+    
+    const installBtn = document.getElementById('install-btn');
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.style.display = 'inline-block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log('User response:', outcome);
+            deferredPrompt = null;
+        } else {
+            alert("【PCでインストールする場合】\n\nブラウザ右上の「︙」メニューから\n「保存して共有」→「ショートカットを作成」を選び、\n「ウィンドウとして開く」にチェックを入れて作成してください。");
+        }
+    });
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        installBtn.style.display = 'none';
+    }
+
+    window.onload = () => {
+        setupCanvasEvents();
+        setupQuitButton();
+        setupFastKeypad();
+        setupPhysicalKeyboard(); // 追加
+        selectTool('pen');
+        setEraserSize(20);
+        handleKeyboard();
+        calcKeys.addEventListener('click', handleCalcKeyPress);
+        updateCalcDisplay();
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) wantsFullScreen = false;
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && wantsFullScreen && !document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+        });
+    };
+</script>
+
+</body>
+</html>
